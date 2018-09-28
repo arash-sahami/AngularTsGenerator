@@ -52,7 +52,7 @@ namespace TypeScripter
 			_compilation = compilation;
 
 			// Add mappings for primitives 
-			TypeLookup = new Dictionary<ITypeSymbol, TsType>()
+			TypeLookup = new Dictionary<ITypeSymbol, TsType>(new TypeSymbolEqualityComparer())
 			{
 				{ _compilation.GetSpecialType(SpecialType.System_Void), TsPrimitive.Void },
 				{ _compilation.GetSpecialType(SpecialType.System_Object), TsPrimitive.Any },
@@ -68,14 +68,30 @@ namespace TypeScripter
 				{ _compilation.GetSpecialType(SpecialType.System_UInt64), TsPrimitive.Number },
 				{ _compilation.GetSpecialType(SpecialType.System_Decimal), TsPrimitive.Number },
 				{ _compilation.GetSpecialType(SpecialType.System_Double), TsPrimitive.Number },
-				{ _compilation.GetTypeByMetadataName(typeof(Guid).FullName), TsPrimitive.String },
-				{ _compilation.GetTypeByMetadataName(typeof(Uri).FullName), TsPrimitive.String },
-				{ _compilation.GetTypeByMetadataName(typeof(DateTime).FullName), TsPrimitive.Date },
-				{ _compilation.GetTypeByMetadataName(typeof(Task).FullName), TsPrimitive.Void },
+				{ _compilation.GetSpecialType(SpecialType.System_DateTime), TsPrimitive.Date },
 			};
 
+			AddAdditionalTypesAsKnown(new[]
+			{
+				new Tuple<Type, TsPrimitive>(typeof(Guid), TsPrimitive.String),
+				new Tuple<Type, TsPrimitive>(typeof(Uri), TsPrimitive.String),
+				new Tuple<Type, TsPrimitive>(typeof(Task), TsPrimitive.Void),
+			});
+
 			// initialize the scripter with default implementations
-			Formatter = new TsFormatter(false);
+			Formatter = new LowerCamelCaseFormatter(false);
+		}
+
+		private void AddAdditionalTypesAsKnown(params Tuple<Type, TsPrimitive>[] typesToBeAdded)
+		{
+			foreach (var type in typesToBeAdded)
+			{
+				var typeByMetadata = _compilation.GetTypeByMetadataName(type.Item1.FullName);
+				if (typeByMetadata != null)
+				{
+					TypeLookup.Add(typeByMetadata, type.Item2);
+				}
+			}
 		}
 		#endregion
 
@@ -141,18 +157,17 @@ namespace TypeScripter
 		public Scripter WithTypeMapping(TsType tsType, Type type)
 		{
 			var typeSymbol = _compilation.GetTypeByMetadataName(type.FullName);
-			if (typeSymbol == null)
+			if (typeSymbol != null)
 			{
-				throw new InvalidOperationException($"Cannot get type {type.FullName} from compiler.");
+				if (TypeLookup.ContainsKey(typeSymbol))
+				{
+					throw new ArgumentException("Mapping for " + type.Name + " is already defined.", nameof(type));
+				}
+
+
+				TypeLookup[typeSymbol] = tsType;
 			}
 
-			if (TypeLookup.ContainsKey(typeSymbol))
-			{
-				throw new ArgumentException("Mapping for " + type.Name + " is already defined.", nameof(type));
-			}
-
-
-			TypeLookup[typeSymbol] = tsType;
 			return this;
 		}
 
