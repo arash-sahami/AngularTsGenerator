@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.IO;
 
-namespace TypeScripter.TypeScript
+namespace TypeScripter
 {
     /// <summary>
     /// The base class for all TypeScript objects

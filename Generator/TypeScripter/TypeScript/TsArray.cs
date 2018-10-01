@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace TypeScripter.TypeScript
+namespace TypeScripter
 {
     /// <summary>
     /// A class representing a TypeScript Array
@@ -18,7 +18,7 @@ namespace TypeScripter.TypeScript
         /// <param name="elementType">The element type</param>
         /// <param name="dimensions">The dimensions</param>
         public TsArray(TsType elementType, int dimensions)
-            : base(new TsName(elementType.Name.Name + GenerateArrayNotation(dimensions), elementType.Name.Namespace))
+            : base(new TsName(elementType.Name.Name + GenerateArrayNotation(dimensions), elementType.Name.Namespace), PrimitiveType.Array)
         {
         }
         #endregion

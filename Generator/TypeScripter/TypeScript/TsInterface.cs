@@ -3,8 +3,10 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using MetaDataModels;
+using Microsoft.CodeAnalysis;
 
-namespace TypeScripter.TypeScript
+namespace TypeScripter
 {
     /// <summary>
     /// A class representing a function
@@ -67,22 +69,27 @@ namespace TypeScripter.TypeScript
                 return this.Name == TsName.None;
             }
         }
-        #endregion
+		#endregion
 
-        #region Creation
-        /// <summary>
-        /// Constructor
-        /// </summary>
-        /// <param name="name">The interface name</param>
-        public TsInterface(TsName name)
+		#region
+
+
+	    #endregion
+
+		#region Creation
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="name">The interface name</param>
+		public TsInterface(TsName name)
             : base(name)
         {
-            this.TypeParameters = new List<TsTypeParameter>();
-            this.BaseInterfaces = new List<TsType>();
-            this.Properties = new List<TsProperty>();
-            this.IndexerProperties = new List<TsIndexerProperty>();
-            this.Functions = new List<TsFunction>();
-        }
+            TypeParameters = new List<TsTypeParameter>();
+            BaseInterfaces = new List<TsType>();
+            Properties = new List<TsProperty>();
+            IndexerProperties = new List<TsIndexerProperty>();
+            Functions = new List<TsFunction>();
+		}
 
         /// <summary>
         /// Constructs an interface to be used as a object type literal
@@ -91,6 +98,11 @@ namespace TypeScripter.TypeScript
             : this(TsName.None)
         {
         }
-        #endregion
-    }
+		#endregion
+
+	    public MetadataInfoModel GetMetaDataInfo(Compilation compilation)
+	    {
+			return MetadataInfoModel.GetMetaDataInfoModel(this, compilation);
+	    }
+	}
 }

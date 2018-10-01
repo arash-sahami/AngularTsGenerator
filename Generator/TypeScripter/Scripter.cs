@@ -7,7 +7,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-using TypeScripter.TypeScript;
+using TypeScripter;
 
 namespace TypeScripter
 {
@@ -17,6 +17,9 @@ namespace TypeScripter
 	public class Scripter
 	{
 		private readonly Compilation _compilation;
+
+		
+
 		#region Properties
 		private Dictionary<ITypeSymbol, TsType> TypeLookup
 		{
@@ -104,7 +107,7 @@ namespace TypeScripter
 		{
 			var str = new StringBuilder();
 			foreach (var module in Modules().OrderBy(x => x.Name))
-				str.Append(Formatter.Format(module));
+				str.Append(Formatter.Format(module, _compilation));
 			return str.ToString();
 		}
 		#endregion
@@ -199,6 +202,7 @@ namespace TypeScripter
 
 		#region Type Generation
 
+		//TODO Arash: Not needed????
 		private bool IsGuid(ITypeSymbol type)
 		{
 			return $"{type.ContainingNamespace}.{type.MetadataName}" == typeof(System.Guid).FullName &&
@@ -464,7 +468,7 @@ namespace TypeScripter
 
 			if (fieldType != null)
 			{
-				return new TsProperty(GetName(field), fieldType, optional); ;
+				return new TsProperty(GetName(field), fieldType, field, optional); ;
 			}
 			else
 			{
@@ -503,7 +507,7 @@ namespace TypeScripter
 
 			if (propertyType != null)
 			{
-				return new TsProperty(GetName(property), propertyType, optional);
+				return new TsProperty(GetName(property), propertyType, property, optional);
 			}
 			else
 			{
@@ -597,7 +601,7 @@ namespace TypeScripter
 			{
 				var fileName = module.Name.FullName + ".d.ts";
 				var path = Path.Combine(directory, fileName);
-				var output = Formatter.Format(module);
+				var output = Formatter.Format(module, _compilation);
 				File.WriteAllText(path, output);
 				File.WriteAllText(path, includeRef + Environment.NewLine + output);
 				includeFiles.Add(fileName);

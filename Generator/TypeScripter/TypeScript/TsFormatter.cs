@@ -3,8 +3,12 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using MetaDataModels;
+using Microsoft.CodeAnalysis;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Serialization;
 
-namespace TypeScripter.TypeScript
+namespace TypeScripter
 {
     /// <summary>
     /// A class which is responsible for rendering the TypeScript output
@@ -42,24 +46,24 @@ namespace TypeScripter.TypeScript
 
             public StringBuilderContext(TsFormatter writer)
             {
-                this.Writer = writer;
-                this.PriorContext = writer.Context;
-                this.IndentLevel = this.PriorContext != null ? this.PriorContext.IndentLevel : 0;
-                this.StringBuilder = new StringBuilder();
-                this.Writer.Context = this;
+                Writer = writer;
+                PriorContext = writer.Context;
+                IndentLevel = PriorContext != null ? PriorContext.IndentLevel : 0;
+                StringBuilder = new StringBuilder();
+                Writer.Context = this;
             }
 
             public override string ToString()
             {
-                return this.StringBuilder.ToString();
+                return StringBuilder.ToString();
             }
 
             void IDisposable.Dispose()
             {
-                if (this.PriorContext != null)
+                if (PriorContext != null)
                 {
-                    this.Writer.Context = this.PriorContext;
-                    this.PriorContext = null;
+                    Writer.Context = PriorContext;
+                    PriorContext = null;
                 }
             }
         }
@@ -69,16 +73,16 @@ namespace TypeScripter.TypeScript
             private TsFormatter mFormatter;
             public IndentContext(TsFormatter formatter)
             {
-                this.mFormatter = formatter;
-                this.mFormatter.Context.IndentLevel++;
+                mFormatter = formatter;
+                mFormatter.Context.IndentLevel++;
             }
 
             void IDisposable.Dispose()
             {
-                if (this.mFormatter != null)
+                if (mFormatter != null)
                 {
-                    this.mFormatter.Context.IndentLevel--;
-                    this.mFormatter = null;
+                    mFormatter.Context.IndentLevel--;
+                    mFormatter = null;
                 }
             }
         }
@@ -116,8 +120,8 @@ namespace TypeScripter.TypeScript
         public TsFormatter(bool generateTypeWithNamespace)
         {
 	        _generateTypeWithNamespace = generateTypeWithNamespace;
-	        this.Context = new StringBuilderContext(this);
-            this.ReservedWordsMapping = new Dictionary<string, string>()
+	        Context = new StringBuilderContext(this);
+            ReservedWordsMapping = new Dictionary<string, string>()
             {
                 {"function","_function"}
             };
@@ -130,19 +134,26 @@ namespace TypeScripter.TypeScript
         /// </summary>
         /// <param name="module">The module</param>
         /// <returns>The string representation of the module</returns>
-        public virtual string Format(TsModule module)
+        public virtual string Format(TsModule module, Compilation compilation)
         {
             using (var sbc = new StringBuilderContext(this))
             {
-                this.WriteNewline();
+                WriteNewline();
                 //using (Indent())
                 {
-                    foreach (var type in module.Types.OfType<TsEnum>().OrderBy(x => x.Name))
-                        this.Write(this.Format(type));
-                    foreach (var type in module.Types.OfType<TsInterface>().OrderBy(x => x.Name))
-                        this.Write(this.Format(type));
+	                foreach (var type in module.Types.OfType<TsEnum>().OrderBy(x => x.Name))
+	                {
+		                Write(Format(type));
+	                }
+	                foreach (var type in module.Types.OfType<TsInterface>().OrderBy(x => x.Name))
+	                {
+		                Write(Format(type));
+		                WriteNewline();
+						Write(Format(type.GetMetaDataInfo(compilation)));
+		                WriteNewline();
+					}
                 }
-                this.WriteNewline();
+                WriteNewline();
                 return sbc.ToString();
             }
         }
@@ -158,69 +169,80 @@ namespace TypeScripter.TypeScript
             {
                 if (tsInterface.IsLiteral)
                 {
-                    this.Write("{");
+                    Write("{");
                     foreach (var property in tsInterface.Properties.OrderBy(x => x.Name))
-                        this.Write(this.Format(property));
+                        Write(Format(property));
 
                     foreach (var property in tsInterface.IndexerProperties.OrderBy(x => x.Name))
-                        this.Write(this.Format(property));
+                        Write(Format(property));
 
                     foreach (var function in tsInterface.Functions.OrderBy(x => x.Name))
-                        this.Write(this.Format(function));
+                        Write(Format(function));
 
-                    this.Write("}");
+                    Write("}");
                     return sbc.ToString();
                 }
                 else
                 {
-                    this.WriteIndent();
-                    this.Write("export interface {0}{1} {2} {{",
+                    WriteIndent();
+                    Write("export interface {0}{1} {2} {{",
                         Format(tsInterface.Name),
                         Format(tsInterface.TypeParameters),
                         tsInterface.BaseInterfaces.Count > 0 ? string.Format("extends {0}", string.Join(", ", tsInterface.BaseInterfaces.OrderBy(x => x.Name).Select(Format))) : string.Empty);
-                    this.WriteNewline();
+                    WriteNewline();
                     using (Indent())
                     {
                         foreach (var property in tsInterface.Properties.OrderBy(x => x.Name))
                         {
-                            this.WriteIndent();
-                            this.Write(this.Format(property));
-                            this.WriteNewline();
+                            WriteIndent();
+                            Write(Format(property));
+                            WriteNewline();
                         }
 
                         foreach (var property in tsInterface.IndexerProperties.OrderBy(x => x.Name))
                         {
-                            this.WriteIndent();
-                            this.Write(this.Format(property));
-                            this.WriteNewline();
+                            WriteIndent();
+                            Write(Format(property));
+                            WriteNewline();
                         }
 
                         foreach (var function in tsInterface.Functions.OrderBy(x => x.Name))
                         {
-                            this.WriteIndent();
-                            this.Write(this.Format(function));
-                            this.WriteNewline();
+                            WriteIndent();
+                            Write(Format(function));
+                            WriteNewline();
                         }
                     }
-                    this.WriteIndent();
-                    this.Write("}");
-                    this.WriteNewline();
-                    this.WriteNewline();
+                    WriteIndent();
+                    Write("}");
+                    WriteNewline();
+                    WriteNewline();
                     return sbc.ToString();
                 }
             }
         }
 
-        /// <summary>
-        /// Formats a property
-        /// </summary>
-        /// <param name="property">The property</param>
-        /// <returns>The string representation of the property</returns>
-        public virtual string Format(TsProperty property)
+		/// <summary>
+		/// Formats the metadata info for.
+		/// </summary>
+		/// <param name="infoModel"></param>
+		/// <returns></returns>
+		public virtual string Format(MetadataInfoModel infoModel)
+		{
+			var jsonSerializerSettings = new JsonSerializerSettings { ContractResolver = new CamelCasePropertyNamesContractResolver() };
+			return JsonConvert.SerializeObject(infoModel, jsonSerializerSettings);
+		}
+
+		/// <summary>
+		/// Formats a property
+		/// </summary>
+		/// <param name="property">The property</param>
+		/// <returns>The string representation of the property</returns>
+		public virtual string Format(TsProperty property)
         {
             using (var sbc = new StringBuilderContext(this))
             {
-                this.Write("{0}{1}: {2};", Format(property.Name), property.Optional?"?":"", Format(property.Type));
+                Write("{0}{1}: {2};", Format(property.Name), property.Optional?"?":"", Format(property.Type));
                 return sbc.ToString();
             }
         }
@@ -234,7 +256,7 @@ namespace TypeScripter.TypeScript
         {
             using (var sbc = new StringBuilderContext(this))
             {
-                this.Write("[{0}: {1}]: {2};", Format(property.Name), Format(property.IndexerType), Format(property.ReturnType));
+                Write("[{0}: {1}]: {2};", Format(property.Name), Format(property.IndexerType), Format(property.ReturnType));
                 return sbc.ToString();
             }
         }
@@ -248,7 +270,7 @@ namespace TypeScripter.TypeScript
         {
             using (var sbc = new StringBuilderContext(this))
             {
-                this.Write("{0}{1}({2}){3};",
+                Write("{0}{1}({2}){3};",
                     Format(function.Name),
                     Format(function.TypeParameters),
                     Format(function.Parameters),
@@ -296,13 +318,13 @@ namespace TypeScripter.TypeScript
         /// <returns>The string representation of the enumeration</returns>
         public virtual string Format(TsEnum tsEnum)
         {
-            if (this.EnumsAsString)
+            if (EnumsAsString)
             {
-                return this.FormatEnumAsStrings(tsEnum);
+                return FormatEnumAsStrings(tsEnum);
             }
             else
             {
-                return this.FormatEnumAsIntegers(tsEnum);
+                return FormatEnumAsIntegers(tsEnum);
             }
         }
 
@@ -315,17 +337,17 @@ namespace TypeScripter.TypeScript
         {
             using (var sbc = new StringBuilderContext(this))
             {
-                this.WriteIndent();
-                this.Write("type {0} = ", Format(tsEnum.Name));
+                WriteIndent();
+                Write("type {0} = ", Format(tsEnum.Name));
                 var values = tsEnum.Values.OrderBy(x => x.Key).ToArray();
                 for (int i = 0; i < values.Length; i++)
                 {
                     var postFix = i < values.Length - 1 ? " | " : string.Empty;
                     var entry = values[i];
-                    this.Write("\'{0}\'{1}", entry.Key, postFix);
+                    Write("\'{0}\'{1}", entry.Key, postFix);
                 }
-                this.Write(";");
-                this.WriteNewline();
+                Write(";");
+                WriteNewline();
                 return sbc.ToString();
             }
         }
@@ -340,9 +362,9 @@ namespace TypeScripter.TypeScript
         {
             using (var sbc = new StringBuilderContext(this))
             {
-                this.WriteIndent();
-                this.Write("export const enum {0} {{", Format(tsEnum.Name));
-                this.WriteNewline();
+                WriteIndent();
+                Write("export const enum {0} {{", Format(tsEnum.Name));
+                WriteNewline();
                 using (Indent())
                 {
                     var values = tsEnum.Values.OrderBy(x => x.Key).ToArray();
@@ -350,17 +372,17 @@ namespace TypeScripter.TypeScript
                     {
                         var postFix = i < values.Length - 1 ? "," : string.Empty;
                         var entry = values[i];
-                        this.WriteIndent();
+                        WriteIndent();
                         if (entry.Value.HasValue)
-                            this.Write("{0} = {1}{2}", entry.Key, entry.Value, postFix);
+                            Write("{0} = {1}{2}", entry.Key, entry.Value, postFix);
                         else
-                            this.Write("{0}{1}", entry.Key, postFix);
-                        this.WriteNewline();
+                            Write("{0}{1}", entry.Key, postFix);
+                        WriteNewline();
                     }
                 }
-                this.WriteIndent();
-                this.Write("}");
-                this.WriteNewline();
+                WriteIndent();
+                Write("}");
+                WriteNewline();
                 return sbc.ToString();
             }
         }
@@ -374,7 +396,7 @@ namespace TypeScripter.TypeScript
         {
             using (var sbc = new StringBuilderContext(this))
             {
-                this.Write("{0}{1}: {2}", Format(parameter.Name), parameter.Optional ? "?" : string.Empty, Format(parameter.Type));
+                Write("{0}{1}: {2}", Format(parameter.Name), parameter.Optional ? "?" : string.Empty, Format(parameter.Type));
                 return sbc.ToString();
             }
         }
@@ -451,7 +473,7 @@ namespace TypeScripter.TypeScript
             if (name == null || name.Name == null)
                 return string.Empty;
             string result = null;
-            if (!this.ReservedWordsMapping.TryGetValue(name.Name, out result))
+            if (!ReservedWordsMapping.TryGetValue(name.Name, out result))
                 result = name.Name;
             return result;
         }
@@ -460,7 +482,7 @@ namespace TypeScripter.TypeScript
         #region Methods
         private void Write(string output)
         {
-            this.Context.StringBuilder.Append(output);
+            Context.StringBuilder.Append(output);
         }
 
         private void Write(string format, params object[] args)
@@ -471,14 +493,14 @@ namespace TypeScripter.TypeScript
         private void WriteIndent()
         {
             var indent = string.Empty;
-            for (int i = 0; i < this.Context.IndentLevel; i++)
+            for (int i = 0; i < Context.IndentLevel; i++)
                 indent += "\t";
             Write(indent);
         }
 
         private void WriteNewline()
         {
-            this.Write(Environment.NewLine);
+            Write(Environment.NewLine);
         }
 
         private IndentContext Indent()

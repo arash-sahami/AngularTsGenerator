@@ -1,4 +1,4 @@
-﻿namespace TypeScripter.TypeScript
+﻿namespace TypeScripter
 {
 	public class TsExternalReference : TsType
 	{

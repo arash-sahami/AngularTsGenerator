@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace TypeScripter.TypeScript
+namespace TypeScripter
 {
 	public class LowerCamelCaseFormatter : TsFormatter
 	{

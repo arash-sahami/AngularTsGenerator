@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace TypeScripter.TypeScript
+namespace TypeScripter
 {
     /// <summary>
     /// The base class for all TypeScript types

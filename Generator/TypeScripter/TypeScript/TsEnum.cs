@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace TypeScripter.TypeScript
+namespace TypeScripter
 {
     /// <summary>
     /// A class representing a TypeScript enumeration

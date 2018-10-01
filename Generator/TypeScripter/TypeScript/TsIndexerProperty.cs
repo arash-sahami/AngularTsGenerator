@@ -1,4 +1,4 @@
-﻿namespace TypeScripter.TypeScript
+﻿namespace TypeScripter
 {
     /// <summary>
     /// A class representing a indexer property, ex: { [key:string]: any} 
